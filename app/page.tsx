@@ -13,6 +13,14 @@ type AiResult = {
   movedTo?: string;
 };
 
+type BackupData = {
+  version: 1;
+  exportedAt: string;
+  checked: boolean[];
+  photos: Record<string, string>;
+  aiResults: Record<string, AiResult>;
+};
+
 const allCars = manufacturers.flatMap((manufacturer) =>
   manufacturer.cars.map((car) => `${manufacturer.name} ${car}`)
 );
@@ -366,6 +374,86 @@ export default function Home() {
     await identifyImageForCar(fullName, image);
   }
 
+  function exportBackup() {
+    const backup: BackupData = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      checked,
+      photos,
+      aiResults,
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: "application/json",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `paddock-backup-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
+  function importBackup(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      try {
+        if (typeof reader.result !== "string") {
+          throw new Error("Could not read backup");
+        }
+
+        const backup = JSON.parse(reader.result) as Partial<BackupData>;
+
+        if (
+          !Array.isArray(backup.checked) ||
+          typeof backup.photos !== "object" ||
+          backup.photos === null ||
+          typeof backup.aiResults !== "object" ||
+          backup.aiResults === null
+        ) {
+          throw new Error("Invalid backup file");
+        }
+
+        setChecked(
+          backup.checked.length === allCars.length
+            ? backup.checked
+            : Array(allCars.length)
+                .fill(false)
+                .map((_, index) => Boolean(backup.checked?.[index]))
+        );
+
+        setPhotos(backup.photos as Record<string, string>);
+        setAiResults(backup.aiResults as Record<string, AiResult>);
+
+        alert("Backup imported successfully.");
+      } catch (error) {
+        console.error(error);
+        alert("That backup file could not be imported.");
+      } finally {
+        event.target.value = "";
+      }
+    };
+
+    reader.onerror = () => {
+      alert("That backup file could not be read.");
+      event.target.value = "";
+    };
+
+    reader.readAsText(file);
+  }
+
   const totalFound = checked.filter(Boolean).length;
   const progress = (totalFound / allCars.length) * 100;
   const searchText = search.toLowerCase();
@@ -429,6 +517,26 @@ export default function Home() {
           placeholder="Search Ferrari, F40, Porsche..."
           className="mt-6 w-full rounded-2xl border border-[#e7dfd1] bg-[#fffaf0] px-4 py-4 text-lg font-bold outline-none placeholder:text-gray-400"
         />
+
+        <section className="mt-4 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={exportBackup}
+            className="rounded-2xl bg-[#003d31] px-4 py-3 text-sm font-black text-white"
+          >
+            ⬇ Export Backup
+          </button>
+
+          <label className="cursor-pointer rounded-2xl bg-[#b99a58] px-4 py-3 text-center text-sm font-black text-white">
+            ⬆ Import Backup
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={importBackup}
+            />
+          </label>
+        </section>
 
         <section className="mt-6 rounded-2xl border border-[#e7dfd1] bg-[#fffaf0] p-4">
           <h2 className="text-xl font-black">🏆 Achievements</h2>
