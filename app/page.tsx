@@ -97,6 +97,49 @@ export default function Home() {
     )?.name;
   }
 
+
+  function compressImage(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        if (typeof reader.result !== "string") {
+          reject(new Error("Could not read image"));
+          return;
+        }
+
+        image.onload = () => {
+          const maxWidth = 900;
+          const scale = Math.min(1, maxWidth / image.width);
+          const width = Math.round(image.width * scale);
+          const height = Math.round(image.height * scale);
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+
+          const context = canvas.getContext("2d");
+
+          if (!context) {
+            reject(new Error("Could not prepare image"));
+            return;
+          }
+
+          context.drawImage(image, 0, 0, width, height);
+
+          resolve(canvas.toDataURL("image/jpeg", 0.75));
+        };
+
+        image.onerror = () => reject(new Error("Could not load image"));
+        image.src = reader.result;
+      };
+
+      reader.onerror = () => reject(new Error("Could not read image"));
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function identifyImageForCar(fullName: string, image: string) {
     setIdentifying((current) => ({
       ...current,
@@ -248,7 +291,7 @@ export default function Home() {
     }
   }
 
-  function handlePhotoUpload(
+  async function handlePhotoUpload(
     carKey: string,
     carIndex: number,
     event: React.ChangeEvent<HTMLInputElement>
@@ -256,36 +299,52 @@ export default function Home() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
+    try {
+      setIdentifying((current) => ({
+        ...current,
+        [carKey]: true,
+      }));
 
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        const imageData = reader.result;
+      const imageData = await compressImage(file);
 
-        setPhotos((current) => ({
-          ...current,
-          [carKey]: imageData,
-        }));
+      setPhotos((current) => ({
+        ...current,
+        [carKey]: imageData,
+      }));
 
-        setAiResults((current) => {
-          const updated = { ...current };
-          delete updated[carKey];
-          return updated;
-        });
+      setAiResults((current) => {
+        const updated = { ...current };
+        delete updated[carKey];
+        return updated;
+      });
 
-        setChecked((current) => {
-          const updated = [...current];
-          updated[carIndex] = true;
-          return updated;
-        });
+      setChecked((current) => {
+        const updated = [...current];
+        updated[carIndex] = true;
+        return updated;
+      });
 
-        identifyImageForCar(carKey, imageData);
+      await identifyImageForCar(carKey, imageData);
+    } catch (error) {
+      console.error(error);
 
-        event.target.value = "";
-      }
-    };
+      setAiResults((current) => ({
+        ...current,
+        [carKey]: {
+          match: null,
+          confidence: "error",
+          reason: "The photo could not be prepared. Try taking another photo.",
+          error: "Image compression failed",
+        },
+      }));
+    } finally {
+      setIdentifying((current) => ({
+        ...current,
+        [carKey]: false,
+      }));
 
-    reader.readAsDataURL(file);
+      event.target.value = "";
+    }
   }
 
   async function identifyCar(fullName: string) {
