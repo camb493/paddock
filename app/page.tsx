@@ -454,9 +454,22 @@ export default function Home() {
     reader.readAsText(file);
   }
 
+  function focusCar(fullName: string) {
+    const manufacturer = findManufacturerName(fullName);
+
+    if (manufacturer) {
+      setOpenSections((current) =>
+        current.includes(manufacturer) ? current : [...current, manufacturer]
+      );
+    }
+
+    setSearch(fullName);
+  }
+
   const totalFound = checked.filter(Boolean).length;
   const progress = (totalFound / allCars.length) * 100;
   const searchText = search.toLowerCase();
+  const missingCars = allCars.filter((_, index) => !checked[index]);
 
   const completedManufacturers = manufacturers.filter((manufacturer) =>
     sectionComplete(manufacturer.name)
@@ -511,12 +524,24 @@ export default function Home() {
           progress={progress}
         />
 
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search Ferrari, F40, Porsche..."
-          className="mt-6 w-full rounded-2xl border border-[#e7dfd1] bg-[#fffaf0] px-4 py-4 text-lg font-bold outline-none placeholder:text-gray-400"
-        />
+        <div className="mt-6">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search Ferrari, F40, Porsche..."
+            className="w-full rounded-2xl border border-[#e7dfd1] bg-[#fffaf0] px-4 py-4 text-lg font-bold outline-none placeholder:text-gray-400"
+          />
+
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="mt-2 text-sm font-black text-[#b99a58]"
+            >
+              Clear search
+            </button>
+          )}
+        </div>
 
         <section className="mt-4 grid grid-cols-2 gap-3">
           <button
@@ -592,6 +617,52 @@ export default function Home() {
               <p className="text-2xl font-black">{Math.round(progress)}%</p>
             </div>
           </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-[#e7dfd1] bg-[#fffaf0] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black">🔎 Still to Find</h2>
+              <p className="text-sm font-bold text-gray-500">
+                {missingCars.length} cars remaining
+              </p>
+            </div>
+
+            {missingCars.length > 0 && (
+              <button
+                type="button"
+                onClick={() => focusCar(missingCars[0])}
+                className="rounded-xl bg-[#003d31] px-3 py-2 text-xs font-black text-white"
+              >
+                Next car
+              </button>
+            )}
+          </div>
+
+          {missingCars.length === 0 ? (
+            <p className="mt-4 rounded-2xl bg-white p-4 text-sm font-black text-green-700">
+              🎉 Full house! Every car has been found.
+            </p>
+          ) : (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {missingCars.slice(0, 8).map((car) => (
+                <button
+                  key={car}
+                  type="button"
+                  onClick={() => focusCar(car)}
+                  className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#003d31] shadow-sm"
+                >
+                  {car}
+                </button>
+              ))}
+
+              {missingCars.length > 8 && (
+                <span className="rounded-full bg-white px-3 py-2 text-xs font-black text-gray-500 shadow-sm">
+                  +{missingCars.length - 8} more
+                </span>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="mt-8 space-y-4">
