@@ -470,6 +470,7 @@ export default function Home() {
   const progress = (totalFound / allCars.length) * 100;
   const searchText = search.toLowerCase();
   const missingCars = allCars.filter((_, index) => !checked[index]);
+  const galleryItems = allCars.filter((car) => photos[car]);
 
   const completedManufacturers = manufacturers.filter((manufacturer) =>
     sectionComplete(manufacturer.name)
@@ -661,6 +662,52 @@ export default function Home() {
                   +{missingCars.length - 8} more
                 </span>
               )}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-[#e7dfd1] bg-[#fffaf0] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black">📸 Gallery</h2>
+              <p className="text-sm font-bold text-gray-500">
+                {galleryItems.length} saved photos
+              </p>
+            </div>
+          </div>
+
+          {galleryItems.length === 0 ? (
+            <p className="mt-4 rounded-2xl bg-white p-4 text-sm font-bold text-gray-500">
+              No photos yet. Scan your first car to start your collection.
+            </p>
+          ) : (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {galleryItems.map((car) => (
+                <button
+                  key={car}
+                  type="button"
+                  onClick={() => focusCar(car)}
+                  className="overflow-hidden rounded-2xl bg-white text-left shadow-sm"
+                >
+                  <img
+                    src={photos[car]}
+                    alt={car}
+                    className="h-28 w-full object-cover"
+                  />
+
+                  <div className="p-3">
+                    <p className="text-sm font-black text-[#003d31]">
+                      {car}
+                    </p>
+
+                    {aiResults[car]?.confidence && (
+                      <p className="mt-1 text-xs font-bold text-gray-500">
+                        AI: {aiResults[car].confidence}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </section>
